@@ -1,6 +1,6 @@
 - 👋 Hi, I’m: @ham-and (or you can call me Harry)
-- 👀 I’m interested: in honestly everything. So much so, I donate to wikipedia. 
-- 🌱 I’m currently learning: how to slow down and spend less time looking at screens. Also, bouldering, german and economics. 
+- 👀 I’m interested in: stuff, and things
+- 🌱 I’m currently learning: bouldering and no-code stuff
 - 💞️ I’m looking to collaborate on: anything socially or community oriented.
 
 <!---
