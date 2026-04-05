@@ -614,13 +614,12 @@
 </div><!-- /app -->
 
 <script>
-// ─── Place Data ─────────────────────────────────────────────────────────────
 const places = [
   {
     id: 1,
     name: "Monastiraki Square",
     category: "Market",
-    icon: "🛍️",
+    icon: "\uD83D\uDECD\uFE0F",
     lat: 37.9757,
     lng: 23.7254,
     photos: [
@@ -632,13 +631,13 @@ const places = [
       name: "Sarah K.",
       avatarUrl: "https://i.pravatar.cc/96?img=47",
     },
-    quote: "The energy here on a Sunday morning is electric — grab a coffee and just wander the flea market for hours.",
+    quote: "The energy here on a Sunday morning is electric \u2014 grab a coffee and just wander the flea market for hours.",
   },
   {
     id: 2,
     name: "Acropolis Viewpoint",
     category: "Landmark",
-    icon: "🏛️",
+    icon: "\uD83C\uDFDB\uFE0F",
     lat: 37.9715,
     lng: 23.7267,
     photos: [
@@ -655,7 +654,7 @@ const places = [
     id: 3,
     name: "The Clumsies",
     category: "Bar",
-    icon: "🍹",
+    icon: "\uD83C\uDF79",
     lat: 37.9770,
     lng: 23.7314,
     photos: [
@@ -673,7 +672,7 @@ const places = [
     id: 4,
     name: "Nolan Restaurant",
     category: "Restaurant",
-    icon: "🍽️",
+    icon: "\uD83C\uDF7D\uFE0F",
     lat: 37.9784,
     lng: 23.7319,
     photos: [
@@ -684,13 +683,13 @@ const places = [
       name: "Tom R.",
       avatarUrl: "https://i.pravatar.cc/96?img=33",
     },
-    quote: "Greek ingredients with Asian technique — sounds weird, tastes incredible. Book ahead, always full.",
+    quote: "Greek ingredients with Asian technique \u2014 sounds weird, tastes incredible. Book ahead, always full.",
   },
   {
     id: 5,
     name: "Varvakios Agora",
     category: "Market",
-    icon: "🐟",
+    icon: "\uD83D\uDC1F",
     lat: 37.9771,
     lng: 23.7272,
     photos: [
@@ -705,7 +704,6 @@ const places = [
   },
 ];
 
-// ─── Map Setup ───────────────────────────────────────────────────────────────
 const map = L.map("map", {
   center: [37.975, 23.728],
   zoom: 15,
@@ -713,14 +711,12 @@ const map = L.map("map", {
 });
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  attribution: '\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   maxZoom: 19,
 }).addTo(map);
 
-// Zoom control — top-left, out of the way of the card
 L.control.zoom({ position: "topleft" }).addTo(map);
 
-// ─── Custom Pin Icon ─────────────────────────────────────────────────────────
 function makePinIcon(isActive = false) {
   const bg   = isActive ? "#c4002a" : "#ff385c";
   const ring = isActive ? "rgba(255,56,92,0.25)" : "transparent";
@@ -740,13 +736,11 @@ function makePinIcon(isActive = false) {
   });
 }
 
-// ─── State ───────────────────────────────────────────────────────────────────
 let activeMarkerId = null;
 let currentSlide   = 0;
 const markers      = {};
 const savedSet     = new Set();
 
-// ─── Card Elements ───────────────────────────────────────────────────────────
 const recCard        = document.getElementById("recCard");
 const cardClose      = document.getElementById("cardClose");
 const overlay        = document.getElementById("overlay");
@@ -763,34 +757,29 @@ const recommenderName   = document.getElementById("recommenderName");
 const quoteText      = document.getElementById("quoteText");
 const saveBtn        = document.getElementById("saveBtn");
 
-// ─── Populate Card ───────────────────────────────────────────────────────────
 function openCard(place) {
-  // Update active pin icons
   if (activeMarkerId !== null && markers[activeMarkerId]) {
     markers[activeMarkerId].setIcon(makePinIcon(false));
   }
   activeMarkerId = place.id;
   markers[place.id].setIcon(makePinIcon(true));
 
-  // Populate text
   placeName.textContent      = place.name;
   categoryIcon.textContent   = place.icon;
   categoryLabel.textContent  = place.category;
-  recommenderName.textContent = place.name !== null ? place.recommender.name : "";
+  recommenderName.textContent = place.recommender.name;
   recommenderAvatar.src      = place.recommender.avatarUrl;
   recommenderAvatar.alt      = place.recommender.name;
   quoteText.textContent      = place.quote;
 
-  // Save button state
   if (savedSet.has(place.id)) {
-    saveBtn.textContent = "✓ Saved to Trio";
+    saveBtn.textContent = "\u2713 Saved to Trio";
     saveBtn.classList.add("saved");
   } else {
     saveBtn.textContent = "Save to your Trio";
     saveBtn.classList.remove("saved");
   }
 
-  // Build carousel
   currentSlide = 0;
   carouselTrack.innerHTML = "";
   carouselDots.innerHTML  = "";
@@ -811,12 +800,10 @@ function openCard(place) {
 
   updateCarousel();
 
-  // Show card
   recCard.classList.add("open");
   overlay.classList.add("visible");
   hint.classList.add("hidden");
 
-  // Pan map slightly to keep pin visible
   const isMobile = window.innerWidth < 768;
   if (isMobile) {
     map.panTo([place.lat, place.lng], { animate: true, duration: 0.4 });
@@ -836,7 +823,6 @@ function closeCard() {
   activeMarkerId = null;
 }
 
-// ─── Carousel Logic ──────────────────────────────────────────────────────────
 function updateCarousel() {
   carouselTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
   const dots = carouselDots.querySelectorAll(".carousel-dot");
@@ -858,7 +844,6 @@ nextBtn.addEventListener("click", (e) => {
   if (currentSlide < total - 1) { currentSlide++; updateCarousel(); }
 });
 
-// ─── Save Button ─────────────────────────────────────────────────────────────
 saveBtn.addEventListener("click", () => {
   if (activeMarkerId === null) return;
   if (savedSet.has(activeMarkerId)) {
@@ -867,16 +852,14 @@ saveBtn.addEventListener("click", () => {
     saveBtn.classList.remove("saved");
   } else {
     savedSet.add(activeMarkerId);
-    saveBtn.textContent = "✓ Saved to Trio";
+    saveBtn.textContent = "\u2713 Saved to Trio";
     saveBtn.classList.add("saved");
   }
 });
 
-// ─── Close Handlers ──────────────────────────────────────────────────────────
 cardClose.addEventListener("click", closeCard);
 overlay.addEventListener("click", closeCard);
 
-// ─── Place Markers ───────────────────────────────────────────────────────────
 places.forEach((place) => {
   const marker = L.marker([place.lat, place.lng], {
     icon: makePinIcon(false),
@@ -887,7 +870,6 @@ places.forEach((place) => {
   markers[place.id] = marker;
 });
 
-// ─── Keyboard: Escape to close ───────────────────────────────────────────────
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeCard();
 });
