@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trio — Places your people love</title>
+
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Plus Jakarta Sans — warm rounded substitute for Airbnb Cereal VF -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Airbnb Design Tokens ───────────────────────────────────────────── */
+    :root {
+      --color-rausch:          #ff385c;
+      --color-text-primary:    #222222;
+      --color-text-secondary:  #6a6a6a;
+      --color-bg:              #ffffff;
+      --color-surface:         #f7f7f7;
+      --color-border:          rgba(0,0,0,0.08);
+      --color-disabled:        rgba(0,0,0,0.24);
+      --radius-card:           20px;
+      --radius-button:         8px;
+      --radius-pill:           999px;
+      --shadow-card:           0 0 0 1px rgba(0,0,0,0.02),
+                               0 2px 8px  rgba(0,0,0,0.04),
+                               0 8px 24px rgba(0,0,0,0.10);
+      --shadow-card-hover:     0 0 0 1px rgba(0,0,0,0.04),
+                               0 4px 16px rgba(0,0,0,0.08),
+                               0 16px 40px rgba(0,0,0,0.14);
+      --spacing: 8px;
+      --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* ─── Reset & Base ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── App Shell ──────────────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 calc(var(--spacing) * 3);
+      height: 64px;
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-border);
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .wordmark {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.44px;
+      color: var(--color-rausch);
+      line-height: 1;
+    }
+
+    .tagline {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      letter-spacing: -0.1px;
+    }
+
+    /* Friend network avatars */
+    .network {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .network-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      margin-right: 4px;
+    }
+
+    .avatar-stack {
+      display: flex;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--color-bg);
+      overflow: hidden;
+      margin-left: -8px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .avatar:first-child { margin-left: 0; }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .network-count {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--color-bg);
+      background: var(--color-surface);
+      margin-left: -8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+      box-shadow: var(--shadow-card);
+    }
+
+    /* ─── Map Wrapper ────────────────────────────────────────────────────── */
+    .map-wrapper {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ─── Custom Leaflet Styles ──────────────────────────────────────────── */
+    .leaflet-tile-pane { filter: saturate(0.9) brightness(1.02); }
+
+    .leaflet-container {
+      font-family: var(--font);
+    }
+
+    /* ─── Custom Pin SVG ─────────────────────────────────────────────────── */
+    .trio-pin {
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+      transform-origin: center bottom;
+    }
+
+    .trio-pin:hover { transform: scale(1.25); }
+    .trio-pin.active { transform: scale(1.25); }
+
+    /* ─── Overlay (mobile backdrop) ──────────────────────────────────────── */
+    .overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.32);
+      z-index: 400;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .overlay.visible {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ─── Recommendation Card ────────────────────────────────────────────── */
+    .rec-card {
+      position: absolute;
+      z-index: 500;
+      background: var(--color-bg);
+      box-shadow: var(--shadow-card-hover);
+
+      /* Mobile: full-width bottom sheet */
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+      max-height: 78vh;
+      overflow-y: auto;
+
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+      overscroll-behavior: contain;
+    }
+
+    .rec-card.open {
+      transform: translateY(0);
+    }
+
+    /* Desktop: floating panel to the right of map */
+    @media (min-width: 768px) {
+      .rec-card {
+        top: calc(var(--spacing) * 2);
+        right: calc(var(--spacing) * 2);
+        bottom: calc(var(--spacing) * 2);
+        left: auto;
+        width: 360px;
+        border-radius: var(--radius-card);
+        max-height: none;
+        transform: translateX(calc(100% + var(--spacing) * 2));
+        transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+      }
+
+      .rec-card.open {
+        transform: translateX(0);
+      }
+
+      .overlay { display: none !important; }
+    }
+
+    /* Drag handle (mobile only) */
+    .drag-handle {
+      display: flex;
+      justify-content: center;
+      padding: 12px 0 8px;
+    }
+
+    .drag-handle span {
+      width: 36px;
+      height: 4px;
+      border-radius: var(--radius-pill);
+      background: var(--color-disabled);
+      display: block;
+    }
+
+    @media (min-width: 768px) {
+      .drag-handle { display: none; }
+    }
+
+    /* ─── Card Inner Sections ────────────────────────────────────────────── */
+
+    /* Close button */
+    .card-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.16);
+      font-size: 16px;
+      color: var(--color-text-primary);
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .card-close:hover {
+      background: var(--color-surface);
+      transform: scale(1.08);
+    }
+
+    /* Photo Carousel */
+    .carousel {
+      position: relative;
+      aspect-ratio: 4/3;
+      overflow: hidden;
+      background: var(--color-surface);
+    }
+
+    .carousel-track {
+      display: flex;
+      height: 100%;
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+      will-change: transform;
+    }
+
+    .carousel-slide {
+      flex-shrink: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .carousel-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Carousel arrow buttons */
+    .carousel-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.90);
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+      font-size: 14px;
+      color: var(--color-text-primary);
+      transition: background 0.15s ease, transform 0.15s ease;
+      z-index: 5;
+    }
+
+    .carousel-btn:hover {
+      background: #ffffff;
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .carousel-btn.prev { left: 10px; }
+    .carousel-btn.next { right: 10px; }
+
+    /* Dot indicators */
+    .carousel-dots {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 5px;
+    }
+
+    .carousel-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.55);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .carousel-dot.active {
+      background: #ffffff;
+      transform: scale(1.3);
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: calc(var(--spacing) * 2) calc(var(--spacing) * 2.5);
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--spacing) * 2.5);
+    }
+
+    /* Place header */
+    .place-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--spacing);
+    }
+
+    .place-title-group { flex: 1; }
+
+    .place-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--color-text-primary);
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+    }
+
+    .category-icon { font-size: 12px; }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--color-border);
+    }
+
+    /* Recommender section */
+    .recommender {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .recommender-avatar {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .recommender-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .recommender-info { flex: 1; }
+
+    .recommender-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      letter-spacing: -0.1px;
+    }
+
+    .recommender-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      margin-top: 1px;
+    }
+
+    /* Quote block */
+    .quote-block {
+      margin-top: 10px;
+      padding-left: 12px;
+      border-left: 3px solid var(--color-rausch);
+    }
+
+    .quote-text {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.6;
+      color: var(--color-text-secondary);
+      font-style: italic;
+    }
+
+    /* CTA Button */
+    .btn-save {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius-button);
+      border: none;
+      background: var(--color-text-primary);
+      color: #ffffff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.1px;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+      text-align: center;
+    }
+
+    .btn-save:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      transform: translateY(-1px);
+    }
+
+    .btn-save:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    /* "Saved" state */
+    .btn-save.saved {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* ─── Empty state prompt ─────────────────────────────────────────────── */
+    .map-hint {
+      position: absolute;
+      bottom: calc(var(--spacing) * 3);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 300;
+      background: var(--color-bg);
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
+      box-shadow: var(--shadow-card);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .map-hint.hidden { opacity: 0; }
+
+    /* ─── Leaflet attribution override ──────────────────────────────────── */
+    .leaflet-control-attribution {
+      font-family: var(--font) !important;
+      font-size: 10px !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <span class="wordmark">trio</span>
+      <span class="tagline">Places your people love</span>
+    </div>
+
+    <div class="network">
+      <span class="network-label">Your crew</span>
+      <div class="avatar-stack">
+        <div class="avatar">
+          <img src="https://i.pravatar.cc/64?img=47" alt="Sarah K." loading="eager" />
+        </div>
+        <div class="avatar">
+          <img src="https://i.pravatar.cc/64?img=12" alt="James M." loading="eager" />
+        </div>
+        <div class="avatar">
+          <img src="https://i.pravatar.cc/64?img=23" alt="Mia T." loading="eager" />
+        </div>
+        <div class="network-count">+4</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Map Wrapper ────────────────────────────────────────────────────── -->
+  <div class="map-wrapper">
+    <div id="map"></div>
+
+    <!-- Backdrop (mobile only) -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Hint -->
+    <div class="map-hint" id="hint">Tap a pin to see a recommendation</div>
+
+    <!-- ── Recommendation Card ─────────────────────────────────────────── -->
+    <div class="rec-card" id="recCard" role="dialog" aria-modal="true" aria-label="Place recommendation">
+      <div class="drag-handle"><span></span></div>
+
+      <button class="card-close" id="cardClose" aria-label="Close">✕</button>
+
+      <!-- Carousel -->
+      <div class="carousel" id="carousel">
+        <div class="carousel-track" id="carouselTrack"></div>
+        <button class="carousel-btn prev" id="prevBtn" aria-label="Previous photo">&#8249;</button>
+        <button class="carousel-btn next" id="nextBtn" aria-label="Next photo">&#8250;</button>
+        <div class="carousel-dots" id="carouselDots"></div>
+      </div>
+
+      <!-- Body -->
+      <div class="card-body">
+        <div class="place-header">
+          <div class="place-title-group">
+            <h2 class="place-name" id="placeName"></h2>
+            <span class="category-badge" id="categoryBadge">
+              <span class="category-icon" id="categoryIcon"></span>
+              <span id="categoryLabel"></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="recommender">
+          <div class="recommender-avatar">
+            <img id="recommenderAvatar" src="" alt="" loading="eager" />
+          </div>
+          <div class="recommender-info">
+            <div class="recommender-name" id="recommenderName"></div>
+            <div class="recommender-label">recommended this</div>
+            <div class="quote-block">
+              <p class="quote-text" id="quoteText"></p>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-save" id="saveBtn">Save to your Trio</button>
+      </div>
+    </div>
+
+  </div><!-- /map-wrapper -->
+</div><!-- /app -->
+
+<script>
+// ─── Place Data ─────────────────────────────────────────────────────────────
+const places = [
+  {
+    id: 1,
+    name: "Monastiraki Square",
+    category: "Market",
+    icon: "🛍️",
+    lat: 37.9757,
+    lng: 23.7254,
+    photos: [
+      "https://picsum.photos/seed/monastiraki1/800/600",
+      "https://picsum.photos/seed/monastiraki2/800/600",
+      "https://picsum.photos/seed/monastiraki3/800/600",
+    ],
+    recommender: {
+      name: "Sarah K.",
+      avatarUrl: "https://i.pravatar.cc/96?img=47",
+    },
+    quote: "The energy here on a Sunday morning is electric — grab a coffee and just wander the flea market for hours.",
+  },
+  {
+    id: 2,
+    name: "Acropolis Viewpoint",
+    category: "Landmark",
+    icon: "🏛️",
+    lat: 37.9715,
+    lng: 23.7267,
+    photos: [
+      "https://picsum.photos/seed/acropolis1/800/600",
+      "https://picsum.photos/seed/acropolis2/800/600",
+    ],
+    recommender: {
+      name: "James M.",
+      avatarUrl: "https://i.pravatar.cc/96?img=12",
+    },
+    quote: "Go at golden hour. Nothing prepares you for how massive and ancient it actually feels in person.",
+  },
+  {
+    id: 3,
+    name: "The Clumsies",
+    category: "Bar",
+    icon: "🍹",
+    lat: 37.9770,
+    lng: 23.7314,
+    photos: [
+      "https://picsum.photos/seed/clumsies1/800/600",
+      "https://picsum.photos/seed/clumsies2/800/600",
+      "https://picsum.photos/seed/clumsies3/800/600",
+    ],
+    recommender: {
+      name: "Mia T.",
+      avatarUrl: "https://i.pravatar.cc/96?img=23",
+    },
+    quote: "Best cocktails in the city, no question. Order the seasonal menu and just trust them completely.",
+  },
+  {
+    id: 4,
+    name: "Nolan Restaurant",
+    category: "Restaurant",
+    icon: "🍽️",
+    lat: 37.9784,
+    lng: 23.7319,
+    photos: [
+      "https://picsum.photos/seed/nolan1/800/600",
+      "https://picsum.photos/seed/nolan2/800/600",
+    ],
+    recommender: {
+      name: "Tom R.",
+      avatarUrl: "https://i.pravatar.cc/96?img=33",
+    },
+    quote: "Greek ingredients with Asian technique — sounds weird, tastes incredible. Book ahead, always full.",
+  },
+  {
+    id: 5,
+    name: "Varvakios Agora",
+    category: "Market",
+    icon: "🐟",
+    lat: 37.9771,
+    lng: 23.7272,
+    photos: [
+      "https://picsum.photos/seed/varvakios1/800/600",
+      "https://picsum.photos/seed/varvakios2/800/600",
+    ],
+    recommender: {
+      name: "Ana S.",
+      avatarUrl: "https://i.pravatar.cc/96?img=56",
+    },
+    quote: "The fish market at 7am is pure beautiful chaos. Get there early and grab breakfast from the stalls.",
+  },
+];
+
+// ─── Map Setup ───────────────────────────────────────────────────────────────
+const map = L.map("map", {
+  center: [37.975, 23.728],
+  zoom: 15,
+  zoomControl: false,
+});
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// Zoom control — top-left, out of the way of the card
+L.control.zoom({ position: "topleft" }).addTo(map);
+
+// ─── Custom Pin Icon ─────────────────────────────────────────────────────────
+function makePinIcon(isActive = false) {
+  const bg   = isActive ? "#c4002a" : "#ff385c";
+  const ring = isActive ? "rgba(255,56,92,0.25)" : "transparent";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="44" viewBox="0 0 38 44">
+      <circle cx="19" cy="19" r="18" fill="${ring}" />
+      <circle cx="19" cy="19" r="13" fill="${bg}" />
+      <circle cx="19" cy="19" r="5"  fill="#ffffff" />
+      <line  x1="19" y1="32" x2="19" y2="42" stroke="${bg}" stroke-width="3" stroke-linecap="round"/>
+    </svg>`;
+  return L.divIcon({
+    html: `<div class="trio-pin${isActive ? " active" : ""}">${svg}</div>`,
+    className: "",
+    iconSize: [38, 44],
+    iconAnchor: [19, 44],
+    popupAnchor: [0, -44],
+  });
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let activeMarkerId = null;
+let currentSlide   = 0;
+const markers      = {};
+const savedSet     = new Set();
+
+// ─── Card Elements ───────────────────────────────────────────────────────────
+const recCard        = document.getElementById("recCard");
+const cardClose      = document.getElementById("cardClose");
+const overlay        = document.getElementById("overlay");
+const hint           = document.getElementById("hint");
+const carouselTrack  = document.getElementById("carouselTrack");
+const carouselDots   = document.getElementById("carouselDots");
+const prevBtn        = document.getElementById("prevBtn");
+const nextBtn        = document.getElementById("nextBtn");
+const placeName      = document.getElementById("placeName");
+const categoryIcon   = document.getElementById("categoryIcon");
+const categoryLabel  = document.getElementById("categoryLabel");
+const recommenderAvatar = document.getElementById("recommenderAvatar");
+const recommenderName   = document.getElementById("recommenderName");
+const quoteText      = document.getElementById("quoteText");
+const saveBtn        = document.getElementById("saveBtn");
+
+// ─── Populate Card ───────────────────────────────────────────────────────────
+function openCard(place) {
+  // Update active pin icons
+  if (activeMarkerId !== null && markers[activeMarkerId]) {
+    markers[activeMarkerId].setIcon(makePinIcon(false));
+  }
+  activeMarkerId = place.id;
+  markers[place.id].setIcon(makePinIcon(true));
+
+  // Populate text
+  placeName.textContent      = place.name;
+  categoryIcon.textContent   = place.icon;
+  categoryLabel.textContent  = place.category;
+  recommenderName.textContent = place.name !== null ? place.recommender.name : "";
+  recommenderAvatar.src      = place.recommender.avatarUrl;
+  recommenderAvatar.alt      = place.recommender.name;
+  quoteText.textContent      = place.quote;
+
+  // Save button state
+  if (savedSet.has(place.id)) {
+    saveBtn.textContent = "✓ Saved to Trio";
+    saveBtn.classList.add("saved");
+  } else {
+    saveBtn.textContent = "Save to your Trio";
+    saveBtn.classList.remove("saved");
+  }
+
+  // Build carousel
+  currentSlide = 0;
+  carouselTrack.innerHTML = "";
+  carouselDots.innerHTML  = "";
+
+  place.photos.forEach((src, i) => {
+    const slide = document.createElement("div");
+    slide.className = "carousel-slide";
+    const img = document.createElement("img");
+    img.src    = src;
+    img.alt    = `${place.name} photo ${i + 1}`;
+    slide.appendChild(img);
+    carouselTrack.appendChild(slide);
+
+    const dot = document.createElement("div");
+    dot.className = "carousel-dot" + (i === 0 ? " active" : "");
+    carouselDots.appendChild(dot);
+  });
+
+  updateCarousel();
+
+  // Show card
+  recCard.classList.add("open");
+  overlay.classList.add("visible");
+  hint.classList.add("hidden");
+
+  // Pan map slightly to keep pin visible
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    map.panTo([place.lat, place.lng], { animate: true, duration: 0.4 });
+  } else {
+    map.panTo([place.lat, place.lng - 0.003], { animate: true, duration: 0.4 });
+  }
+}
+
+function closeCard() {
+  recCard.classList.remove("open");
+  overlay.classList.remove("visible");
+  hint.classList.remove("hidden");
+
+  if (activeMarkerId !== null && markers[activeMarkerId]) {
+    markers[activeMarkerId].setIcon(makePinIcon(false));
+  }
+  activeMarkerId = null;
+}
+
+// ─── Carousel Logic ──────────────────────────────────────────────────────────
+function updateCarousel() {
+  carouselTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+  const dots = carouselDots.querySelectorAll(".carousel-dot");
+  dots.forEach((d, i) => d.classList.toggle("active", i === currentSlide));
+
+  const total = carouselTrack.children.length;
+  prevBtn.style.display = (total <= 1 || currentSlide === 0)        ? "none" : "flex";
+  nextBtn.style.display = (total <= 1 || currentSlide === total - 1) ? "none" : "flex";
+}
+
+prevBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (currentSlide > 0) { currentSlide--; updateCarousel(); }
+});
+
+nextBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const total = carouselTrack.children.length;
+  if (currentSlide < total - 1) { currentSlide++; updateCarousel(); }
+});
+
+// ─── Save Button ─────────────────────────────────────────────────────────────
+saveBtn.addEventListener("click", () => {
+  if (activeMarkerId === null) return;
+  if (savedSet.has(activeMarkerId)) {
+    savedSet.delete(activeMarkerId);
+    saveBtn.textContent = "Save to your Trio";
+    saveBtn.classList.remove("saved");
+  } else {
+    savedSet.add(activeMarkerId);
+    saveBtn.textContent = "✓ Saved to Trio";
+    saveBtn.classList.add("saved");
+  }
+});
+
+// ─── Close Handlers ──────────────────────────────────────────────────────────
+cardClose.addEventListener("click", closeCard);
+overlay.addEventListener("click", closeCard);
+
+// ─── Place Markers ───────────────────────────────────────────────────────────
+places.forEach((place) => {
+  const marker = L.marker([place.lat, place.lng], {
+    icon: makePinIcon(false),
+    title: place.name,
+  }).addTo(map);
+
+  marker.on("click", () => openCard(place));
+  markers[place.id] = marker;
+});
+
+// ─── Keyboard: Escape to close ───────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeCard();
+});
+</script>
+
+</body>
+</html>
