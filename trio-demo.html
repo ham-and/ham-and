@@ -156,7 +156,7 @@
     }
 
     /* ─── Custom Leaflet Styles ──────────────────────────────────────────── */
-    .leaflet-tile-pane { filter: saturate(0.9) brightness(1.02); }
+    .leaflet-tile-pane { filter: saturate(1.05) brightness(1.01); }
 
     .leaflet-container {
       font-family: var(--font);
@@ -712,9 +712,10 @@ const map = L.map("map", {
   zoomControl: false,
 });
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  maxZoom: 19,
+L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: "abcd",
+  maxZoom: 20,
 }).addTo(map);
 
 // Zoom control — top-left, out of the way of the card
